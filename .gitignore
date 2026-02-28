@@ -5,6 +5,10 @@
 __pycache__/
 
 build/
+
+/tools/openocd-hpm/
+/tools/**/.cache/
+
 compile_commands.json
 
 .devcontainer/.zsh_history

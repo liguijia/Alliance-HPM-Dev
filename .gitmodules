@@ -1,6 +1,3 @@
 [submodule "hpm_sdk"]
 	path = hpm_sdk
 	url = https://github.com/Alliance-Hardware/hpm_sdk.git
-[submodule "tools/riscv-openocd"]
-	path = tools/riscv-openocd
-	url = https://github.com/riscv-collab/riscv-openocd.git
