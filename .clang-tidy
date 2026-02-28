@@ -1,0 +1,129 @@
+Checks: >
+  bugprone-*,
+  -bugprone-dynamic-static-initializers,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+
+  cert-err33-c,
+
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-init-variables,
+  -cppcoreguidelines-macro-to-enum,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-*,
+  -cppcoreguidelines-pro-type-member-init,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-union-access,
+
+  -cppcoreguidelines-c-copy-assignment-signature,
+  -cppcoreguidelines-explicit-virtual-functions,
+  -cppcoreguidelines-narrowing-conversions,
+  -cppcoreguidelines-noexcept-destructor,
+  -cppcoreguidelines-noexcept-move-operations,
+  -cppcoreguidelines-noexcept-swap,
+  -cppcoreguidelines-use-default-member-init,
+
+  google-*,
+  -google-objc-*,
+  -google-readability-braces-around-statements,
+  -google-readability-todo,
+
+  -google-build-namespaces,
+  -google-readability-casting,
+  -google-readability-function-size,
+
+  hicpp-exception-baseclass,
+  hicpp-ignored-remove-result,
+  hicpp-multiway-paths-covered,
+  hicpp-no-assembler,
+  -hicpp-signed-bitwise,
+
+  misc-*,
+  -misc-multiple-inheritance,
+  -misc-non-private-member-variables-in-classes,
+  -misc-use-internal-linkage,
+
+  modernize-*,
+  -modernize-avoid-c-arrays,
+  -modernize-avoid-variadic-functions,
+  -modernize-use-auto,
+  -modernize-use-nodiscard,
+  -modernize-use-trailing-return-type,
+  -modernize-macro-to-enum,
+
+  mpi-buffer-deref,
+  mpi-type-mismatch,
+  openmp-use-default-none,
+
+  performance-*,
+  -performance-no-int-to-ptr,
+
+  readability-*,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-implicit-bool-conversion,
+  -readability-inconsistent-ifelse-braces,
+  -readability-isolate-declaration,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-redundant-access-specifiers,
+  -readability-static-accessed-through-instance,
+  -readability-use-concise-preprocessor-directives,
+
+CheckOptions:
+  readability-identifier-naming.AggressiveDependentMemberLookup: true
+  readability-identifier-naming.CheckAnonFieldInParent: true
+
+  readability-identifier-naming.NamespaceCase: lower_case
+
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.StructIgnoredRegexp: promise_type
+  readability-identifier-naming.UnionCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.TypedefCase: CamelCase
+  readability-identifier-naming.TypeAliasCase: CamelCase
+  readability-identifier-naming.TemplateParameterCase: CamelCase
+
+  readability-identifier-naming.FunctionCase: lower_case
+  readability-identifier-naming.MethodCase: lower_case
+
+  readability-identifier-naming.VariableCase: lower_case
+  readability-identifier-naming.ParameterCase: lower_case
+  readability-identifier-naming.LocalVariableCase: lower_case
+  readability-identifier-naming.ValueTemplateParameterCase: lower_case
+
+  readability-identifier-naming.MemberCase: lower_case
+  readability-identifier-naming.PrivateMemberSuffix: _
+  readability-identifier-naming.ProtectedMemberSuffix: _
+  readability-identifier-naming.ClassMemberCase: lower_case
+  readability-identifier-naming.ClassMemberSuffix: _ # Strangely only affects static members
+
+  readability-identifier-naming.GlobalConstantCase: CamelCase
+  readability-identifier-naming.GlobalConstantPrefix: k
+  readability-identifier-naming.StaticConstantCase: CamelCase
+  readability-identifier-naming.StaticConstantPrefix: k
+  readability-identifier-naming.ClassConstantCase: CamelCase
+  readability-identifier-naming.ClassConstantPrefix: k
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.EnumConstantPrefix: k
+  readability-identifier-naming.ConstexprVariableCase: CamelCase
+  readability-identifier-naming.ConstexprVariablePrefix: k
+  readability-identifier-naming.LocalConstexprVariableCase: lower_case
+
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+
+  cppcoreguidelines-special-member-functions.AllowImplicitlyDeletedCopyOrMove: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted: true
+  misc-include-cleaner.IgnoreHeaders: "bits/.+h" # https://github.com/llvm/llvm-project/issues/68213
+  misc-const-correctness.AnalyzeParameters: false # Handled by `readability-non-const-parameter`
+  readability-simplify-boolean-expr.IgnoreMacros: true
+  readability-simplify-boolean-expr.ChainedConditionalReturn: true

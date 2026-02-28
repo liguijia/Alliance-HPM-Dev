@@ -130,45 +130,86 @@ ENV GNURISCV_TOOLCHAIN_PATH=/opt/riscv32-gnu-toolchain-elf-bin
 ENV PATH="${GNURISCV_TOOLCHAIN_PATH}/bin:${PATH}"
 ENV HPM_SDK_BASE=/workspace/hpm_sdk
 
-# ---- 6) User: alliance + zsh + oh-my-zsh + direnv ----
-# Create alliance user for a nicer HOME, but default to root for "no sudo" workflow.
-RUN useradd -m -s /bin/zsh alliance \
- && echo "alliance ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers.d/alliance \
- && chmod 0440 /etc/sudoers.d/alliance
+# ---- 6) User: alliance fixed to 1000:1000 ----
+ARG USERNAME=alliance
+ARG USER_UID=1000
+ARG USER_GID=1000
 
-# ---- 6.1) Install Oh-My-Zsh for root and set theme: jonathan ----
-RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes \
-    sh -c "$(wget -qO- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
- && sed -i 's/^ZSH_THEME=.*/ZSH_THEME="jonathan"/' /root/.zshrc \
- && { \
-      echo ''; \
+RUN set -eux; \
+    \
+    # 0) Make sure /home exists
+    mkdir -p "/home/${USERNAME}"; \
+    \
+    # 1) If UID 1000 is already taken by some other user, move it away
+    if getent passwd "${USER_UID}" >/dev/null; then \
+      old_user="$(getent passwd "${USER_UID}" | cut -d: -f1)"; \
+      if [ "${old_user}" != "${USERNAME}" ]; then \
+        echo "[fix] uid ${USER_UID} is used by ${old_user}, moving it to 1999"; \
+        usermod -u 1999 "${old_user}"; \
+      fi; \
+    fi; \
+    \
+    # 2) Ensure group with GID 1000 exists (keep its existing name if any)
+    if ! getent group "${USER_GID}" >/dev/null; then \
+      groupadd -g "${USER_GID}" "${USERNAME}"; \
+    fi; \
+    \
+    # 3) Ensure a group *named* alliance exists (may NOT be gid 1000; name used by tools/scripts)
+    if ! getent group "${USERNAME}" >/dev/null; then \
+      groupadd "${USERNAME}"; \
+    fi; \
+    \
+    # 4) Create or fix user alliance: uid=1000, primary gid=1000, also in group "alliance"
+    if ! id -u "${USERNAME}" >/dev/null 2>&1; then \
+      useradd -m -u "${USER_UID}" -g "${USER_GID}" -s /bin/zsh "${USERNAME}"; \
+    else \
+      usermod -u "${USER_UID}" -g "${USER_GID}" -s /bin/zsh "${USERNAME}"; \
+    fi; \
+    usermod -aG "${USERNAME}" "${USERNAME}"; \
+    \
+    # 5) Fix home ownership using numeric ids (avoid name mismatch)
+    chown -R "${USER_UID}:${USER_GID}" "/home/${USERNAME}"; \
+    \
+    # 6) sudo no password
+    echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}"; \
+    chmod 0440 "/etc/sudoers.d/${USERNAME}"
+
+# ---- 6.1) Install Oh-My-Zsh for user and set theme: jonathan ----
+RUN set -eux; \
+    # 1) Install oh-my-zsh for the target user (non-interactive)
+    su - "${USERNAME}" -c 'RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(wget -qO- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'; \
+    \
+    # 2) Set theme
+    sed -i 's/^ZSH_THEME=.*/ZSH_THEME="jonathan"/' "/home/${USERNAME}/.zshrc"; \
+    \
+    # 3) Prepare workspace history file + link to ~/.zsh_history (FOR THE USER, not root)
+    mkdir -p /workspace/.devcontainer; \
+    touch /workspace/.devcontainer/.zsh_history; \
+    chown -R "${USER_UID}:${USER_GID}" /workspace/.devcontainer; \
+    su - "${USERNAME}" -c 'ln -sfn /workspace/.devcontainer/.zsh_history ~/.zsh_history'; \
+    \
+    # 4) Append env & direnv hook into user's .zshrc
+    { \
+      echo ""; \
       echo 'eval "$(direnv hook zsh)"'; \
       echo 'export HPM_SDK_BASE=/workspace/hpm_sdk'; \
       echo 'export GNURISCV_TOOLCHAIN_PATH=/opt/riscv32-gnu-toolchain-elf-bin'; \
-      echo 'export PATH="${GNURISCV_TOOLCHAIN_PATH}/bin:${PATH}"'; \
-    } >> /root/.zshrc \
- && mkdir -p /root/.config/direnv \
- && printf "[whitelist]\nprefix = [ \"/workspace\" ]\n" > /root/.config/direnv/direnv.toml
-
-# Optional: also prepare alliance shell config (useful if you later switch remoteUser back)
-RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes \
-    su - alliance -c 'sh -c "$(wget -qO- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"' \
- && sed -i 's/^ZSH_THEME=.*/ZSH_THEME="jonathan"/' /home/alliance/.zshrc \
- && { \
-      echo ''; \
-      echo 'eval "$(direnv hook zsh)"'; \
-      echo 'export HPM_SDK_BASE=/workspace/hpm_sdk'; \
-      echo 'export GNURISCV_TOOLCHAIN_PATH=/opt/riscv32-gnu-toolchain-elf-bin'; \
-      echo 'export PATH="${GNURISCV_TOOLCHAIN_PATH}/bin:${PATH}"'; \
-    } >> /home/alliance/.zshrc \
- && mkdir -p /home/alliance/.config/direnv \
- && printf "[whitelist]\nprefix = [ \"/workspace\" ]\n" > /home/alliance/.config/direnv/direnv.toml \
- && chown -R alliance:alliance /home/alliance
-
-# ---- 7) Default to root (no sudo required) ----
-USER root
+      echo 'export PATH="$GNURISCV_TOOLCHAIN_PATH/bin:$PATH"'; \
+      echo 'export HISTFILE=/workspace/.devcontainer/.zsh_history'; \
+    } >> "/home/${USERNAME}/.zshrc"; \
+    \
+    # 5) direnv whitelist
+    mkdir -p "/home/${USERNAME}/.config/direnv"; \
+    printf "[whitelist]\nprefix = [ \"/workspace\" ]\n" > "/home/${USERNAME}/.config/direnv/direnv.toml"; \
+    \
+    # 6) ownership
+    chown -R "${USER_UID}:${USER_GID}" "/home/${USERNAME}"
+    
+# ---- 7) Default to alliance (recommended) ----
+RUN mkdir -p /workspace && chown -R ${USER_UID}:${USER_GID} /workspace
+USER alliance
 WORKDIR /workspace
-ENV USER=root
-ENV WORKDIR=/workspace
+ENV USER=alliance
+ENV HOME=/home/alliance
 
 CMD ["/bin/zsh"]

@@ -1,0 +1,70 @@
+BasedOnStyle: LLVM
+
+ColumnLimit: 100
+
+IndentWidth: 4
+ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+AccessModifierOffset: -4
+
+Standard: c++20
+
+MaxEmptyLinesToKeep: 1
+
+AlignAfterOpenBracket: AlwaysBreak
+
+AlignArrayOfStructures: Right
+
+AlignConsecutiveAssignments:
+  Enabled: false
+AlignConsecutiveBitFields:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignConsecutiveDeclarations:
+  Enabled: false
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignEscapedNewlines: Left
+AlignOperands: AlignAfterOperator
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+PointerAlignment: Left
+
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: true
+
+IndentPPDirectives: AfterHash
+PPIndentWidth: 1
+
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeConceptDeclarations: Always
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+FixNamespaceComments: true
+IndentWrappedFunctionNames: true
+
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<(assert|complex|ctype|errno|fenv|float|inttypes|iso646|limits|locale|math|setjmp|signal|stdalign|stdarg|stdatomic|stdbit|stdbool|stdckdint|stddef|stdint|stdio|stdlib|stdnoreturn|string|tgmath|threads|time|uchar|wchar|wctype)\.h>$'
+    Priority: 1
+  - Regex: '^<.*\.h>$'
+    Priority: 2
+  - Regex: '^<.*\.hpp>$'
+    Priority: 3
+  - Regex: "^<.*>$"
+    Priority: 1
+  - Regex: '^".*"$'
+    Priority: 4
+
+AlwaysBreakTemplateDeclarations: Yes
+IndentRequiresClause: false
+RequiresClausePosition: SingleLine
+
+InsertNewlineAtEOF: true
