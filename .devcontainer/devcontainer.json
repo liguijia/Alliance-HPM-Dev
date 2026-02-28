@@ -54,7 +54,9 @@
     "customizations": {
         "vscode": {
             "settings": {
-                "remote.autoForwardPorts": false
+                "remote.autoForwardPorts": false ,
+                "clangd.path": "/usr/bin/clangd",
+                "clangd.arguments": ["--log=error"]
             },
             "extensions": [
                 // C++ language support
