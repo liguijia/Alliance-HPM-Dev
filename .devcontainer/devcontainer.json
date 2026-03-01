@@ -2,8 +2,6 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
 {
     "name": "alliance-hpm-dev",
-    "image": "kaiser/alliance-hpm-dev:latest",
-
     "build": {
         "dockerfile": "../Dockerfile",
         "context": "..",
@@ -46,7 +44,10 @@
         "http_proxy": "${localEnv:http_proxy}",
         "https_proxy": "${localEnv:https_proxy}",
         "no_proxy": "${localEnv:no_proxy}",
-        "HOST_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+        "HOST_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
+        "HPM_SDK_BASE": "/workspace/hpm_sdk",
+        "HPM_OCD_SCRIPTS": "/workspace/hpm_sdk/boards/openocd",
+        "HPM_OPENOCD_PREFIX": "/workspace/tools/openocd-hpm/install"
     },
     "runArgs": [
         "--network=host"
@@ -54,7 +55,9 @@
     "customizations": {
         "vscode": {
             "settings": {
-                "remote.autoForwardPorts": false
+                "remote.autoForwardPorts": false ,
+                "clangd.path": "/usr/bin/clangd",
+                "clangd.arguments": ["--log=error"]
             },
             "extensions": [
                 // C++ language support

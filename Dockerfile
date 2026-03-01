@@ -22,31 +22,42 @@ RUN printf '%s\n' \
   'Acquire::ForceIPv4 "true";' \
   > /etc/apt/apt.conf.d/99retries
 
-# ---- 0.2) Prefer CN mirrors, fallback to global mirrors ----
-# deb822 format for Ubuntu 24.04. APT will try URIs in order.
+# ---- 0.2) Prefer CN mirrors, fallback to official Ubuntu ----
+# Strategy:
+#   1) Default to CN mirrors (fast in CN).
+#   2) If CN is unreachable, switch to official Ubuntu sources (archive + security).
 RUN set -eux; \
   . /etc/os-release; \
   CODENAME="${VERSION_CODENAME}"; \
   install -d /etc/apt/sources.list.d; \
+  \
+  # 1) CN mirrors as default (enabled)
   cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
 Types: deb
-URIs: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ https://mirrors.ustc.edu.cn/ubuntu/ https://mirrors.aliyun.com/ubuntu/ http://archive.ubuntu.com/ubuntu/ http://mirrors.edge.kernel.org/ubuntu/ http://ftp.jaist.ac.jp/pub/Linux/ubuntu/
+URIs: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ https://mirrors.ustc.edu.cn/ubuntu/ https://mirrors.aliyun.com/ubuntu/
 Suites: ${CODENAME} ${CODENAME}-updates ${CODENAME}-backports
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 
 Types: deb
-URIs: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ https://mirrors.ustc.edu.cn/ubuntu/ https://mirrors.aliyun.com/ubuntu/ http://security.ubuntu.com/ubuntu/ http://mirrors.edge.kernel.org/ubuntu/
+URIs: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ https://mirrors.ustc.edu.cn/ubuntu/ https://mirrors.aliyun.com/ubuntu/
 Suites: ${CODENAME}-security
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-EOF
-
-# Optional: keep a CN mirror backup file (NOT enabled by default)
-RUN cat > /etc/apt/sources.list.d/ubuntu.sources.cn.bak <<'EOF'
+EOF \
+  ; \
+  \
+  # 2) Official Ubuntu sources as fallback (disabled by default)
+  cat > /etc/apt/sources.list.d/ubuntu.sources.official <<EOF
 Types: deb
-URIs: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ https://mirrors.ustc.edu.cn/ubuntu/ https://mirrors.aliyun.com/ubuntu/
-Suites: noble noble-updates noble-security noble-backports
+URIs: http://archive.ubuntu.com/ubuntu/
+Suites: ${CODENAME} ${CODENAME}-updates ${CODENAME}-backports
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+Types: deb
+URIs: http://security.ubuntu.com/ubuntu/
+Suites: ${CODENAME}-security
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 EOF
@@ -67,6 +78,9 @@ RUN apt-get update \
     libc6-dev gcc-14 g++-14 \
     gdb \
     libusb-1.0-0-dev \
+    libftdi1-2 \
+    libhidapi-hidraw0 \
+    libhidapi-libusb0 \
     libmpc3 libmpfr6 libgmp10 \
     libexpat1 zlib1g \
     python3 python3-pip python3-venv \
@@ -129,6 +143,34 @@ RUN set -eux; \
 ENV GNURISCV_TOOLCHAIN_PATH=/opt/riscv32-gnu-toolchain-elf-bin
 ENV PATH="${GNURISCV_TOOLCHAIN_PATH}/bin:${PATH}"
 ENV HPM_SDK_BASE=/workspace/hpm_sdk
+ENV HPM_OCD_SCRIPTS=/workspace/hpm_sdk/boards/openocd
+ENV HPM_OPENOCD_PREFIX=/workspace/tools/openocd-hpm/install
+
+# ---- 5.1) Install HPM OpenOCD via project installer script ----
+COPY tools/scripts/install-hpm-openocd.sh /tmp/install-hpm-openocd.sh
+RUN chmod +x /tmp/install-hpm-openocd.sh \
+ && mkdir -p /workspace/tools \
+ && /tmp/install-hpm-openocd.sh \
+ && rm -f /tmp/install-hpm-openocd.sh
+
+# ---- 5.2) OpenOCD helper for HPM SDK scripts + upstream scripts ----
+RUN cat > /usr/local/bin/openocd-hpm <<'EOF' \
+ && chmod +x /usr/local/bin/openocd-hpm
+#!/usr/bin/env bash
+set -euo pipefail
+
+sdk_base="${HPM_SDK_BASE:-/workspace/hpm_sdk}"
+hpm_ocd_scripts="${HPM_OCD_SCRIPTS:-${sdk_base}/boards/openocd}"
+hpm_openocd_prefix="${HPM_OPENOCD_PREFIX:-/workspace/tools/openocd-hpm/install}"
+hpm_openocd_bin="${hpm_openocd_prefix}/bin/openocd"
+upstream_scripts="${hpm_openocd_prefix}/share/openocd/scripts"
+
+if [[ -x "${hpm_openocd_bin}" ]]; then
+  exec "${hpm_openocd_bin}" -s "${upstream_scripts}" -s "${hpm_ocd_scripts}" "$@"
+fi
+
+exec openocd -s "${upstream_scripts}" -s "${hpm_ocd_scripts}" "$@"
+EOF
 
 # ---- 6) User: alliance fixed to 1000:1000 ----
 ARG USERNAME=alliance
