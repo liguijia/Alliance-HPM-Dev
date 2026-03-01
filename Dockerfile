@@ -22,46 +22,6 @@ RUN printf '%s\n' \
   'Acquire::ForceIPv4 "true";' \
   > /etc/apt/apt.conf.d/99retries
 
-# ---- 0.2) Prefer CN mirrors, fallback to official Ubuntu ----
-# Strategy:
-#   1) Default to CN mirrors (fast in CN).
-#   2) If CN is unreachable, switch to official Ubuntu sources (archive + security).
-RUN set -eux; \
-  . /etc/os-release; \
-  CODENAME="${VERSION_CODENAME}"; \
-  install -d /etc/apt/sources.list.d; \
-  \
-  # 1) CN mirrors as default (enabled)
-  cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
-Types: deb
-URIs: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ https://mirrors.ustc.edu.cn/ubuntu/ https://mirrors.aliyun.com/ubuntu/
-Suites: ${CODENAME} ${CODENAME}-updates ${CODENAME}-backports
-Components: main restricted universe multiverse
-Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-
-Types: deb
-URIs: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ https://mirrors.ustc.edu.cn/ubuntu/ https://mirrors.aliyun.com/ubuntu/
-Suites: ${CODENAME}-security
-Components: main restricted universe multiverse
-Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-EOF \
-  ; \
-  \
-  # 2) Official Ubuntu sources as fallback (disabled by default)
-  cat > /etc/apt/sources.list.d/ubuntu.sources.official <<EOF
-Types: deb
-URIs: http://archive.ubuntu.com/ubuntu/
-Suites: ${CODENAME} ${CODENAME}-updates ${CODENAME}-backports
-Components: main restricted universe multiverse
-Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-
-Types: deb
-URIs: http://security.ubuntu.com/ubuntu/
-Suites: ${CODENAME}-security
-Components: main restricted universe multiverse
-Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-EOF
-
 # ---- 1) Base tools & deps ----
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
