@@ -1,64 +1,116 @@
-# 用户模板
+# 用户工程模板（user_template）
 
-## 概述
+## 1. 模板定位
 
-本工程是用户模板，用户可将该文件夹复制到用户自定义的工作目录中，基于此模板进行开发。
+`user_template` 用于快速创建一个可编译的 HPMicro 用户工程，包含：
 
-本模板主要牵涉到的用户自定义的文件有：
+- 应用入口与业务代码骨架（`user_app`）
+- 板级支持包骨架（`user_board`）
+- 三套工具链链接脚本（`linkers`）
+- 统一构建入口（`Makefile`）
 
-- 用户板级文件Board
-- 用户应用程序App
-- 用户链接脚本Linker
+该模板只承载“单工程所需最小内容”，通用平台代码放在仓库根目录独立维护：
 
+- `/workspace/alliance_hpm_base_platform`（可选引用）
 
-## 用户板级文件Board
+## 2. 目录说明
 
-在`user_board`文件夹下，有一个`yaml`文件和一个`cfg`文件，这两个文件的名称**必须**要跟文件夹名称一致，这样start_gui才能识别出该文件夹为板级文件夹。
+```text
+user_template/
+├── Makefile
+├── user_app/
+│   ├── CMakeLists.txt
+│   ├── inc/
+│   └── src/main.c
+├── user_board/
+│   ├── CMakeLists.txt
+│   ├── board.c / board.h
+│   ├── pinmux.c / pinmux.h
+│   ├── user_board.yaml
+│   └── user_board.cfg
+├── linkers/
+│   ├── gcc/user_linker.ld
+│   ├── iar/user_linker.icf
+│   └── segger/user_linker.icf
+└── README_zh.md
+```
 
-其中，`yaml`文件是用户板级配置文件，用于配置soc名称、openocd脚本等。`cfg`文件是openocd的板级配置文件，指定板载Flash的参数、调试器reset-init事件处理、调试器gdb-attach事件处理等。
+## 3. 构建工作流
 
-通常，用户可将hpm_sdk/boards/hpm_xxxx_evk目录中文件复制到user_board文件夹下，将hpm_sdk/boards/openocd/boards目录evk对应的`cfg`文件复制到user_board文件夹下，然后在其基础上根据自身板子的配置进行修改。
+`Makefile` 已封装 CMake + Ninja 工作流，默认流程如下：
 
-- <注意>：复制过来后，请修改`yaml`和`cfg`文件名称，与文件夹名称保持一致。
+1. 自动识别板目录：在工程根目录查找 `*_board` 目录，提取 `BOARD` 名称。  
+   当前模板默认识别为 `user_board`。
+2. 配置阶段：执行 `cmake -S user_app -B build` 并传入板型、架构、ABI 等参数。
+3. 编译阶段：执行 `cmake --build build -j`。
+4. 产物阶段（`make artifacts`）：将 `build/output/demo.*` 复制为 `output/<项目名>.*`。
 
-本模板中的`user_board`文件夹的文件是从hpm6750evk2相关文件复制过来的，用户可根据自身板子的配置情况将其替换或修改。
+常用命令：
 
-## 用户应用程序App
+```bash
+make configure     # 仅配置
+make build         # 配置 + 编译
+make artifacts     # 配置 + 编译 + 导出产物到 output/
+make clean         # 清理 .cache/build/output
+```
 
-在`user_app`文件夹下，用户可组织自己的应用程序，例如main函数等。
+可覆盖变量（示例）：
 
-添加的.c文件和.h文件时，请在`CMakeList.txt`中使用`sdk_app_src`添加.c文件，使用`sdk_app_inc`添加.h文件的路径。
+```bash
+make build BOARD=user_board CMAKE_BUILD_TYPE=Release HPM_BUILD_TYPE=flash_xip
+```
 
-若使用到`middleware`、`components`等，请参考hpm_sdk对应sample中的`CMakeList.txt`，然后在依葫芦画瓢在用户的`CMakeList.txt`中添加相关指令。
+## 4. 新建工程推荐方式
 
-HPM_SDK中支持的cmake指令可在hpm_sdk\docs\index_zh.html中查看：
-![sdk_cmake_api](doc/sdk_cmake_api.png)
+推荐从“干净模板”创建新工程：
 
-- Tips：修改`CMakeList.txt`后，需要重新生成工程并编译，才能生效。
+1. 复制模板目录并重命名，例如 `my_project`
+2. 删除缓存目录（若存在）：`build/`、`output/`、`.cache/`
+3. 在新目录执行 `make build`
 
-## 用户链接脚本Linker
+示例：
 
-在`user_app`文件夹下，有该应用程序的`linker`文件，用户可根据自身的需求自定义该文件。
+```bash
+cp -a user_template my_project
+cd my_project
+make clean
+make build
+```
 
-通常，用户可将hpm_sdk/soc/xxxx/xxxx/toolchains中的`gcc`/`iar`/`segger`文件夹中的linker文件复制到user_app/linkers中，在其基础上进行修改。
+## 5. 重要注意事项（复制后首编失败的常见原因）
 
-- <注意>：复制过来后，`gcc`/`iar`/`segger`三个文件下的linker文件名称保持一致，仅后缀不一样。
+如果复制时把旧的 `build/CMakeCache.txt` 一起带过去，首次构建可能报错：
 
-本模板中的linker文件是从hpm6750evk2的flash_xip liner文件复制过来的，用户可根据自身板子的配置情况将其替换或修改。
+- 新目录路径与缓存中的旧 source/build 路径不一致
 
-用户在应用程序的`CMakeList.txt`中可以指定使用的Linker文件，如果在`CMakeList.txt`中不指定Linker文件，也可在start_gui生成工程的时候指定Linker文件。
+处理方式：
 
-如果以上两种情况都不指定Linker文件，则会使用SDK默认的linker文件，位于hpm_sdk/soc/xxxx/xxxx/toolchains中。
+- 执行 `make clean` 后重新 `make build`
+- 或手动删除 `build/ output/ .cache` 后重建
 
-## START_GUI的使用
+## 6. 与通用平台组件的关系
 
-上述的文件组织完毕后，可使用start_gui生成自己的project工程。
+`user_app/CMakeLists.txt` 提供以下可选能力：
 
-![start_gui_demo](doc/start_gui_demo.png)
+- `ALLIANCE_HPM_BASE_PLATFORM_DIR`：通用平台目录（默认指向仓库根目录下 `alliance_hpm_base_platform`）
+- `ENABLE_COMMON_PLATFORM_HEADERS`：是否将通用平台头文件加入当前应用
 
-- Board Path：指定顶层的`user_template`文件夹，它将自动搜索该文件夹下的板级文件。
-- Application Path：指定顶层的`user_template`文件夹，它将自动搜索该文件夹下的应用程序。
-- User GCC Liner File：指定用户自定义的gcc linker文件。生成project后，gcc工具链将使用gcc文件夹下的linker，iar工具链将使用iar文件夹下的linker，segger工具链将使用segger文件夹下的linker。
-  - <注意>: start_gui的`Build Type`需要配合linker文件正确指定。例如，当linker文件使用到Flash且没有SDRAM时，start_gui的`Build Type`需要指定为`flash_xip`；当linker文件使用到Flash且有SDRAM时，start_gui的`Build Type`需要指定为`flash_sdram_xip`。
-- 配置完毕后，点击`Generate`，即可生成工程。
-  - <注意>: 修改`CMakeList.txt`后，需要重新生成工程并编译，才能生效。
+示例：
+
+```bash
+cmake -S user_app -B build \
+  -DBOARD=user_board \
+  -DENABLE_COMMON_PLATFORM_HEADERS=ON
+```
+
+当开启 `ENABLE_COMMON_PLATFORM_HEADERS=ON` 时，若目录不存在会在配置阶段直接报错，请先确认路径有效。
+
+## 7. 板级命名约定
+
+请保持以下名称一致：
+
+- 板目录名：`<name>_board`（例如 `user_board`）
+- YAML 文件中的 `board.name`
+- 板级配置文件名（`<name>.yaml` / `<name>.cfg` 的命名语义）
+
+名称不一致会影响板级识别、IDE 工程生成或调试配置关联。

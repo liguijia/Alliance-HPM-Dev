@@ -6,14 +6,15 @@
  */
 
 #include <stdio.h>
+
 #include "board.h"
 
-int main(void)
-{
+int main(void) {
     board_init();
 
-    while(1) {
-        ;
+    while (1) {
+        printf("Hello world!\n");
+        // board_delay_ms(1000);
     }
     return 0;
 }
