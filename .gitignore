@@ -8,6 +8,7 @@ build/
 output/
 
 /tools/openocd-hpm/
+/tools/jlink-V8.40
 /tools/**/.cache/
 
 compile_commands.json

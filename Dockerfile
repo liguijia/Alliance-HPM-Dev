@@ -103,34 +103,6 @@ RUN set -eux; \
 ENV GNURISCV_TOOLCHAIN_PATH=/opt/riscv32-gnu-toolchain-elf-bin
 ENV PATH="${GNURISCV_TOOLCHAIN_PATH}/bin:${PATH}"
 ENV HPM_SDK_BASE=/workspace/hpm_sdk
-ENV HPM_OCD_SCRIPTS=/workspace/hpm_sdk/boards/openocd
-ENV HPM_OPENOCD_PREFIX=/workspace/tools/openocd-hpm/install
-
-# ---- 5.1) Install HPM OpenOCD via project installer script ----
-COPY tools/scripts/install-hpm-openocd.sh /tmp/install-hpm-openocd.sh
-RUN chmod +x /tmp/install-hpm-openocd.sh \
- && mkdir -p /workspace/tools \
- && /tmp/install-hpm-openocd.sh \
- && rm -f /tmp/install-hpm-openocd.sh
-
-# ---- 5.2) OpenOCD helper for HPM SDK scripts + upstream scripts ----
-RUN cat > /usr/local/bin/openocd-hpm <<'EOF' \
- && chmod +x /usr/local/bin/openocd-hpm
-#!/usr/bin/env bash
-set -euo pipefail
-
-sdk_base="${HPM_SDK_BASE:-/workspace/hpm_sdk}"
-hpm_ocd_scripts="${HPM_OCD_SCRIPTS:-${sdk_base}/boards/openocd}"
-hpm_openocd_prefix="${HPM_OPENOCD_PREFIX:-/workspace/tools/openocd-hpm/install}"
-hpm_openocd_bin="${hpm_openocd_prefix}/bin/openocd"
-upstream_scripts="${hpm_openocd_prefix}/share/openocd/scripts"
-
-if [[ -x "${hpm_openocd_bin}" ]]; then
-  exec "${hpm_openocd_bin}" -s "${upstream_scripts}" -s "${hpm_ocd_scripts}" "$@"
-fi
-
-exec openocd -s "${upstream_scripts}" -s "${hpm_ocd_scripts}" "$@"
-EOF
 
 # ---- 6) User: alliance fixed to 1000:1000 ----
 ARG USERNAME=alliance
