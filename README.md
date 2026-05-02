@@ -151,7 +151,73 @@ echo "$HPM_SDK_BASE"
 echo "$GNURISCV_TOOLCHAIN_PATH"
 ```
 
-## 9. 推荐阅读
+## 9. Dev Container 环境搭建
+
+本项目提供 `.devcontainer/devcontainer.json`，在 VS Code 中一键启动容器化开发环境。
+
+### 9.1 平台差异说明
+
+| 平台 | 挂载方式 | opencode/codex/claude 配置共享 |
+|------|---------|-------------------------------|
+| **Windows + Docker Desktop（默认）** | WSL UNC + `USERPROFILE` 双挂载 | ✅ 自动符号链接（含 XDG 路径） |
+| **Arch Linux（原生 Docker）** | `${localEnv:HOME}` 单挂载 | ✅ 自动符号链接（需手动切换配置） |
+
+### 9.2 Windows + Docker Desktop（👈 默认配置）
+
+默认挂载两个目录：
+
+| 挂载 | 来源 | 容器路径 | 用途 |
+|------|------|---------|------|
+| WSL home | `\\wsl.localhost\archlinux\home\kaiser` | `/mnt/wsl-home` | opencode 二进制 (`~/.opencode`) |
+| Windows 用户目录 | `%USERPROFILE%` | `/mnt/win-home` | opencode XDG 配置 (`~/.config/opencode`) + 认证 (`~/.local/share/opencode`) |
+
+容器启动后自动完成：
+
+```
+/mnt/wsl-home/.opencode                   → ~/.opencode          (二进制)
+/mnt/win-home/.config/opencode            → ~/.config/opencode   (配置)
+/mnt/win-home/.local/share/opencode       → ~/.local/share/opencode (auth)
+/mnt/*/.codex / .claude                   → ~/.codex / ~/.claude
+export PATH="$HOME/.opencode/bin:$PATH"   → ~/.zshrc
+```
+
+> **自定义路径**：如果 WSL 发行版名或用户名不同，修改第一个 mount 的 source：
+> ```jsonc
+> "source": "\\\\wsl.localhost\\<你的发行版>\\home\\<你的用户名>"
+> ```
+
+### 9.3 Arch Linux（原生 Docker）
+
+1. 注释掉两个 Windows 挂载块
+2. 取消注释 `${localEnv:HOME}` 挂载块（文件中有注释指引）
+
+```jsonc
+"mounts": [
+    { "source": "/dev", "target": "/dev", "type": "bind" },
+    // 注释掉 WSL 和 USERPROFILE 两个挂载块 ↑
+    // 取消注释下面 ↓
+    {
+        "source": "${localEnv:HOME}",
+        "target": "/mnt/home",
+        "type": "bind"
+    }
+]
+```
+
+容器启动后自动符号链接宿主机 `~/.codex`、`~/.claude`、`~/.opencode` 及 XDG 路径。
+
+### 9.4 镜像内容
+
+首次启动自动构建 Docker 镜像（基于 `Dockerfile`），包含：
+
+- Ubuntu 24.04 / GCC-14 / RISC-V GNU Toolchain（交叉编译）
+- LLVM clangd（代码智能提示）/ CMake / Ninja / Make
+- OpenOCD 依赖库 / Oh-My-Zsh / direnv
+- 后续启动复用镜像缓存，无需重新构建
+
+---
+
+## 10. 推荐阅读
 
 - 模板详细说明：`/workspace/user_template/README_zh.md`
 - SDK 总览：`/workspace/hpm_sdk/README_zh.md`

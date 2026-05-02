@@ -23,19 +23,32 @@
             "target": "/dev",
             "type": "bind"
         },
+        // WSL home — opencode binary (~/.opencode/bin/opencode)
+        // Adjust distro/username if yours differ:
+        //   \\\\wsl.localhost\\<distro>\\home\\<username>
         {
-            "source": "/tmp/.X11-unix",
-            "target": "/tmp/.X11-unix",
+            "source": "\\\\wsl.localhost\\archlinux\\home\\kaiser",
+            "target": "/mnt/wsl-home",
             "type": "bind"
         },
+        // Windows user profile — opencode XDG config & auth
+        // ($HOME/.config/opencode, $HOME/.local/share/opencode)
         {
-            "source": "${localEnv:HOME}",
-            "target": "/mnt/home",
+            "source": "${localEnv:USERPROFILE}",
+            "target": "/mnt/win-home",
             "type": "bind"
         }
+        // -- Arch Linux (native Docker) alternative --
+        // Comment out both mounts above and uncomment below:
+        // {
+        //     "source": "${localEnv:HOME}",
+        //     "target": "/mnt/home",
+        //     "type": "bind"
+        // }
     ],
-    "onCreateCommand": "bash -c '[ -d /mnt/home/.codex ] && ln -sfn /mnt/home/.codex ~/.codex; [ -d /mnt/home/.claude ] && ln -sfn /mnt/home/.claude ~/.claude; true'",
-    "postCreateCommand": "bash -c 'if [ -d ~/.codex ]; then sudo npm i -g @openai/codex; fi; if [ -d ~/.claude ]; then curl -fsSL https://claude.ai/install.sh | bash && sudo ln -sf ~/.local/bin/claude /usr/local/bin/claude; fi'",
+    "onCreateCommand": "bash -c 'mkdir -p ~/.local/share/opencode; [ -d /mnt/win-home/.config/opencode ] && ln -sfn /mnt/win-home/.config/opencode ~/.config/opencode; [ -d /mnt/wsl-home/.opencode ] && ln -sfn /mnt/wsl-home/.opencode ~/.opencode; for cfg in codex claude; do for src in /mnt/wsl-home/.$cfg /mnt/win-home/.$cfg; do [ -d \"$src\" ] && ln -sfn \"$src\" ~/.$cfg && break; done; done; [ -f /mnt/win-home/.local/share/opencode/auth.json ] && ln -sfn /mnt/win-home/.local/share/opencode/auth.json ~/.local/share/opencode/auth.json; true'",
+    "postCreateCommand": "bash -c 'grep -q \".opencode/bin\" ~/.zshrc || echo \"export PATH=\\\"\\$HOME/.opencode/bin:\\$PATH\\\"\" >> ~/.zshrc; true'",
+    "postStartCommand": "bash -c 'mkdir -p ~/.local/share/opencode; [ -d /mnt/win-home/.config/opencode ] && ln -sfn /mnt/win-home/.config/opencode ~/.config/opencode; [ -d /mnt/wsl-home/.opencode ] && ln -sfn /mnt/wsl-home/.opencode ~/.opencode; [ -f /mnt/win-home/.local/share/opencode/auth.json ] && ln -sfn /mnt/win-home/.local/share/opencode/auth.json ~/.local/share/opencode/auth.json; true'",
     "containerEnv": {
         "DISPLAY": "${localEnv:DISPLAY}",
         "HTTP_PROXY": "${localEnv:HTTP_PROXY}",
