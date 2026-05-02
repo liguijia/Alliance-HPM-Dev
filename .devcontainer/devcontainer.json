@@ -35,7 +35,7 @@
         }
     ],
     "onCreateCommand": "bash -c '[ -d /mnt/home/.codex ] && ln -sfn /mnt/home/.codex ~/.codex; [ -d /mnt/home/.claude ] && ln -sfn /mnt/home/.claude ~/.claude; true'",
-    "postCreateCommand": "bash -c '[ -d ~/.codex ] && sudo npm i -g @openai/codex; [ -d ~/.claude ] && curl -fsSL https://claude.ai/install.sh | bash && sudo ln -sf ~/.local/bin/claude /usr/local/bin/claude; true'",
+    "postCreateCommand": "bash -c 'if [ -d ~/.codex ]; then sudo npm i -g @openai/codex; fi; if [ -d ~/.claude ]; then curl -fsSL https://claude.ai/install.sh | bash && sudo ln -sf ~/.local/bin/claude /usr/local/bin/claude; fi'",
     "containerEnv": {
         "DISPLAY": "${localEnv:DISPLAY}",
         "HTTP_PROXY": "${localEnv:HTTP_PROXY}",
@@ -62,6 +62,8 @@
             "extensions": [
                 // C++ language support
                 "llvm-vs-code-extensions.vscode-clangd",
+                // Cortex Debug (OpenOCD/J-Link debugging)
+                "marus25.cortex-debug",
                 // Python language support
                 "ms-python.vscode-pylance",
                 "ms-python.python",

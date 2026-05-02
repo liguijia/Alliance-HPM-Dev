@@ -77,8 +77,8 @@ RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.
  && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-$version 50 \
  && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-$version 50
 
-# ---- 4) Node.js 24 ----
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+# ---- 4) Node.js 22 LTS ----
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && apt-get update \
  && apt-get install -y --no-install-recommends nodejs \
  && apt-get autoremove -y \

@@ -13,3 +13,5 @@ Diagnostics:
 CompileFlags:
   Add:
     - "-Wextra-semi"
+    - "-I/opt/riscv32-gnu-toolchain-elf-bin/lib/gcc/riscv32-unknown-elf/15.2.0/include"
+    - "-I/opt/riscv32-gnu-toolchain-elf-bin/riscv32-unknown-elf/include"
