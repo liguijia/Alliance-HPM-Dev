@@ -1,7 +1,7 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
+// Windows fallback Dev Container config.
+// Use this when ${localEnv:HOME} is unavailable but ${localEnv:USERPROFILE} exists.
 {
-    "name": "alliance-hpm-dev",
+    "name": "alliance-hpm-dev-windows-fallback",
     "build": {
         "dockerfile": "../Dockerfile",
         "context": ".."

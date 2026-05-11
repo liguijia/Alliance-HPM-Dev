@@ -1,7 +1,7 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
+// Linux / Arch Linux Dev Container config.
+// Use this when opening the workspace from a Linux host where ${localEnv:HOME} is available.
 {
-    "name": "alliance-hpm-dev",
+    "name": "alliance-hpm-dev-linux",
     "build": {
         "dockerfile": "../Dockerfile",
         "context": ".."
@@ -25,7 +25,7 @@
             "type": "bind"
         },
         {
-            "source": "${localEnv:USERPROFILE}",
+            "source": "${localEnv:HOME}",
             "target": "/host-home",
             "type": "bind"
         },
@@ -40,7 +40,7 @@
             "type": "volume"
         },
         {
-            "source": "${localEnv:USERPROFILE}",
+            "source": "${localEnv:HOME}",
             "target": "/host-home-ro",
             "type": "bind",
             "readonly": true

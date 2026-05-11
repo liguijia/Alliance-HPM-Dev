@@ -155,58 +155,160 @@ echo "$GNURISCV_TOOLCHAIN_PATH"
 
 本项目提供 `.devcontainer/devcontainer.json`，在 VS Code 中一键启动容器化开发环境。
 
-### 9.1 平台差异说明
+### 9.1 双配置开箱即用方案
 
-| 平台 | 挂载方式 | opencode/codex/claude 配置共享 |
-|------|---------|-------------------------------|
-| **Windows + Docker Desktop（默认）** | WSL UNC + `USERPROFILE` 双挂载 | ✅ 自动符号链接（含 XDG 路径） |
-| **Arch Linux（原生 Docker）** | `${localEnv:HOME}` 单挂载 | ✅ 自动符号链接（需手动切换配置） |
+当前仓库提供两套 Dev Container 配置：
 
-### 9.2 Windows + Docker Desktop（👈 默认配置）
+| 配置目录 | 适用场景 | Home 来源 |
+|---------|---------|----------|
+| `.devcontainer/` | 默认推荐，Windows / Docker Desktop | `${localEnv:USERPROFILE}` |
+| `.devcontainer-linux/` | Linux / Arch Linux 主机 | `${localEnv:HOME}` |
+| `.devcontainer-windows/` | Windows fallback（与默认等价保留） | `${localEnv:USERPROFILE}` |
 
-默认挂载两个目录：
+推荐选择策略：
+
+- **Windows / Docker Desktop**：直接使用默认 `.devcontainer/`
+- **Arch Linux / Linux**：使用 `.devcontainer-linux/`
+- **Windows fallback**：如需保留旧选择方式，也可继续使用 `.devcontainer-windows/`
+
+### 9.2 Root 用户模式
+
+**当前容器统一以 `root` 用户直接运行，不再创建普通用户（如 `alliance`）。**
+
+容器内 `HOME=/root`，所有持久化数据均存放于 `/root` 下：
+
+| 目录 | 用途 |
+|------|------|
+| `/root/.config/opencode` | opencode 配置（插件、命令、主题等） |
+| `/root/.local/share/opencode` | opencode 运行时数据（auth.json 等） |
+| `/root/.cache/opencode` | opencode 缓存 |
+| `/root/.codex` / `.claude` / `.agents` | 从宿主机 symlink 的 AI 工具配置 |
+
+脚本会自动探测宿主机目录布局并完成 symlink / 文件复制：
+
+```text
+/host-home/.codex or .config/codex               → /root/.codex
+/host-home/.claude or .config/claude             → /root/.claude
+/host-home/.agents or .config/agents             → /root/.agents
+/host-home/.config/opencode                      → /root/.config/opencode
+/host-home/AppData/Roaming/opencode              → /root/.config/opencode
+/host-home-ro/.local/share/opencode/auth.json          → /root/.local/share/opencode/auth.json
+/host-home-ro/AppData/Local/opencode/auth.json         → /root/.local/share/opencode/auth.json
+```
+
+> 说明：`opencode` CLI 本体已在镜像内安装，因此不再依赖宿主机 `~/.opencode/bin/opencode`。
+
+### 9.3 Windows 默认方案（`.devcontainer/`）
+
+当前默认 Dev Container 面向 **Windows + Docker Desktop**，使用 `USERPROFILE` 作为宿主机 Home 来源：
 
 | 挂载 | 来源 | 容器路径 | 用途 |
 |------|------|---------|------|
-| WSL home | `\\wsl.localhost\archlinux\home\kaiser` | `/mnt/wsl-home` | opencode 二进制 (`~/.opencode`) |
-| Windows 用户目录 | `%USERPROFILE%` | `/mnt/win-home` | opencode XDG 配置 (`~/.config/opencode`) + 认证 (`~/.local/share/opencode`) |
+| Host Home | `${localEnv:USERPROFILE}` | `/host-home` | 共享 `~/.codex`、`~/.claude`、`~/.agents`、opencode 配置 |
+| Host Home(只读) | `${localEnv:USERPROFILE}` | `/host-home-ro` | 只读读取 opencode 认证数据 |
+| Docker Volume | `alliance-hpm-dev-opencode-data` | `/root/.local/share/opencode` | 容器内持久化 opencode 数据 |
+| Docker Volume | `alliance-hpm-dev-opencode-cache` | `/root/.cache/opencode` | 容器内持久化 opencode 缓存 |
 
-容器启动后自动完成：
+### 9.4 Linux / Arch Linux 方案（`.devcontainer-linux/`）
 
+如果你的宿主机本身就是 Linux / Arch Linux，请选择：
+
+- 配置目录：`.devcontainer-linux/`
+- Home 挂载来源：`${localEnv:HOME}`
+
+该配置会自动兼容：
+
+- `$HOME/.config/opencode`
+- `$HOME/.local/share/opencode`
+- `$HOME/.codex`
+- `$HOME/.claude`
+- `$HOME/.agents`
+
+### 9.5 Windows fallback 方案（`.devcontainer-windows/`）
+
+如果你的 Windows 宿主机里 `HOME` 不存在，或者 VS Code / Docker Desktop 无法正确解析 `${localEnv:HOME}`，请改用：
+
+- 配置目录：`.devcontainer-windows/`
+- Home 挂载来源：`${localEnv:USERPROFILE}`
+
+其余行为与默认方案保持一致：
+
+- `opencode` CLI 仍然在镜像内安装
+- 配置/认证仍然自动探测
+- 仍然使用同一套 `post-create.sh`
+
+### 9.6 开箱即用前提
+
+为了保证 Windows 和 Arch Linux 都能开箱即用，请确保宿主机至少满足以下之一：
+
+#### Windows（默认配置 `.devcontainer/`）
+
+- opencode 配置位于以下任一位置：
+  - `%USERPROFILE%\AppData\Roaming\opencode`
+  - `%USERPROFILE%\.config\opencode`
+
+#### Windows（fallback 配置 `.devcontainer-windows/`）
+
+- `USERPROFILE` 环境变量正常存在
+- 推荐 opencode 配置位于以下任一位置：
+  - `%USERPROFILE%\AppData\Roaming\opencode`
+  - `%USERPROFILE%\.config\opencode`
+
+#### Arch Linux / Linux（配置 `.devcontainer-linux/`）
+
+- `HOME` 环境变量正常存在
+- 推荐使用标准 XDG 路径：
+  - `$HOME/.config/opencode`
+  - `$HOME/.local/share/opencode`
+
+### 9.7 在 VS Code 中如何选择配置
+
+如果 VS Code 检测到多个 Dev Container 配置目录，通常会提示你选择。
+
+建议这样选：
+
+- Windows / Docker Desktop：选 `.devcontainer/`
+- Linux / Arch Linux：选 `.devcontainer-linux/`
+- 如果要保留 Windows 备用配置，也可以选 `.devcontainer-windows/`
+
+如果当前已经打开了错误配置，可以：
+
+1. `Dev Containers: Reopen Folder Locally`
+2. 再执行 `Dev Containers: Reopen in Container`
+3. 选择正确的配置目录
+
+### 9.8 如果容器里已有 `codex` / `claude` 但没有 `opencode`
+
+这通常说明当前容器是基于旧镜像创建的，还没包含最新的 `opencode-ai` 安装步骤。
+
+处理方式二选一：
+
+1. **推荐：重建容器**
+
+   - `Dev Containers: Rebuild and Reopen in Container`
+
+2. **快速修复：在容器内手动重跑初始化脚本**
+
+   ```bash
+   bash .devcontainer/post-create.sh
+   ```
+
+该脚本现在会在发现 `opencode` 缺失时自动执行：
+
+```bash
+npm install -g opencode-ai
 ```
-/mnt/wsl-home/.opencode                   → ~/.opencode          (二进制)
-/mnt/win-home/.config/opencode            → ~/.config/opencode   (配置)
-/mnt/win-home/.local/share/opencode       → ~/.local/share/opencode (auth)
-/mnt/*/.codex / .claude                   → ~/.codex / ~/.claude
-export PATH="$HOME/.opencode/bin:$PATH"   → ~/.zshrc
+
+修复后可验证：
+
+```bash
+which opencode
+opencode --version
 ```
 
-> **自定义路径**：如果 WSL 发行版名或用户名不同，修改第一个 mount 的 source：
-> ```jsonc
-> "source": "\\\\wsl.localhost\\<你的发行版>\\home\\<你的用户名>"
-> ```
+> 说明：当前配置**不会**在镜像构建阶段执行 `npm install -g npm@latest`，也不再依赖 `NodeSource setup_22.x` 脚本。这是为了避免某些网络 / 源组合下出现类似 `Cannot find module 'promise-retry'` 或 NodeSource 初始化失败的构建问题。
 
-### 9.3 Arch Linux（原生 Docker）
-
-1. 注释掉两个 Windows 挂载块
-2. 取消注释 `${localEnv:HOME}` 挂载块（文件中有注释指引）
-
-```jsonc
-"mounts": [
-    { "source": "/dev", "target": "/dev", "type": "bind" },
-    // 注释掉 WSL 和 USERPROFILE 两个挂载块 ↑
-    // 取消注释下面 ↓
-    {
-        "source": "${localEnv:HOME}",
-        "target": "/mnt/home",
-        "type": "bind"
-    }
-]
-```
-
-容器启动后自动符号链接宿主机 `~/.codex`、`~/.claude`、`~/.opencode` 及 XDG 路径。
-
-### 9.4 镜像内容
+### 9.9 镜像内容
 
 首次启动自动构建 Docker 镜像（基于 `Dockerfile`），包含：
 
@@ -214,6 +316,39 @@ export PATH="$HOME/.opencode/bin:$PATH"   → ~/.zshrc
 - LLVM clangd（代码智能提示）/ CMake / Ninja / Make
 - OpenOCD 依赖库 / Oh-My-Zsh / direnv
 - 后续启动复用镜像缓存，无需重新构建
+
+### 9.10 Root 使用验证步骤
+
+容器启动后，在终端中执行以下命令验证 root 模式已生效：
+
+```bash
+# 1. 确认当前用户为 root
+whoami
+# 期望输出: root
+
+# 2. 确认 HOME 指向 /root
+echo "$HOME"
+# 期望输出: /root
+
+# 3. 确认工作目录为 /workspace
+pwd
+# 期望输出: /workspace
+
+# 4. 确认 opencode / codex / claude CLI 可用
+which opencode && opencode --version
+which codex && codex --version
+which claude && claude --version
+
+# 5. 确认 AI 工具配置已从宿主机同步
+ls -la /root/.codex
+ls -la /root/.claude
+ls -la /root/.config/opencode
+
+# 6. 确认环境变量已设置
+echo "$HPM_SDK_BASE"
+echo "$GNURISCV_TOOLCHAIN_PATH"
+which riscv32-unknown-elf-gcc
+```
 
 ---
 
