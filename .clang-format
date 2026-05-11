@@ -16,22 +16,24 @@ AlignAfterOpenBracket: AlwaysBreak
 AlignArrayOfStructures: Right
 
 AlignConsecutiveAssignments:
-  Enabled: false
+    Enabled: false
 AlignConsecutiveBitFields:
-  Enabled: true
-  AcrossEmptyLines: false
-  AcrossComments: false
+    Enabled: true
+    AcrossEmptyLines: false
+    AcrossComments: false
 AlignConsecutiveDeclarations:
-  Enabled: false
+    Enabled: false
 AlignConsecutiveMacros:
-  Enabled: true
-  AcrossEmptyLines: false
-  AcrossComments: false
+    Enabled: true
+    AcrossEmptyLines: false
+    AcrossComments: false
+# AlignConsecutiveShortCaseStatements:
+#     Enabled: false
 AlignEscapedNewlines: Left
 AlignOperands: AlignAfterOperator
 AlignTrailingComments:
-  Kind: Always
-  OverEmptyLines: 1
+    Kind: Always
+    OverEmptyLines: 64
 PointerAlignment: Left
 
 AllowAllArgumentsOnNextLine: true
@@ -47,24 +49,9 @@ BreakBeforeConceptDeclarations: Always
 BreakConstructorInitializers: BeforeComma
 BreakInheritanceList: BeforeComma
 FixNamespaceComments: true
+IncludeBlocks: Preserve
 IndentWrappedFunctionNames: true
-
-SortIncludes: true
-IncludeBlocks: Regroup
-IncludeCategories:
-  - Regex: '^<(assert|complex|ctype|errno|fenv|float|inttypes|iso646|limits|locale|math|setjmp|signal|stdalign|stdarg|stdatomic|stdbit|stdbool|stdckdint|stddef|stdint|stdio|stdlib|stdnoreturn|string|tgmath|threads|time|uchar|wchar|wctype)\.h>$'
-    Priority: 1
-  - Regex: '^<.*\.h>$'
-    Priority: 2
-  - Regex: '^<.*\.hpp>$'
-    Priority: 3
-  - Regex: "^<.*>$"
-    Priority: 1
-  - Regex: '^".*"$'
-    Priority: 4
 
 AlwaysBreakTemplateDeclarations: Yes
 IndentRequiresClause: false
 RequiresClausePosition: SingleLine
-
-InsertNewlineAtEOF: true

@@ -1,36 +1,43 @@
 SHELL := /bin/bash
 
+# ============================================================================
 # Paths
+# ============================================================================
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-APP_DIR := $(ROOT_DIR)/user_app
+APP_DIR := $(ROOT_DIR)
+BOARDS_DIR := $(ROOT_DIR)/Board
+BOARD_CONFIG_DIR := $(ROOT_DIR)/Board/hpm_board_config
+DRIVER_DIR := $(ROOT_DIR)/Driver/hpm_impl
 BUILD_DIR := $(ROOT_DIR)/build
 OUTPUT_DIR := $(ROOT_DIR)/output
 PROJECT_NAME ?= $(notdir $(ROOT_DIR))
 
-# ---- Board selection ----
-# Change default here, or override on command line:
-#   make BOARD_SEARCH_PATH=user_board
-#   make BOARD_SEARCH_PATH=hpm5301evklite_board
-#   make BOARD_SEARCH_PATH=/some/external/path/custom_board
-BOARD_SEARCH_PATH ?= hpm5301evklite_board
+# ============================================================================
+# Board Selection
+# ============================================================================
+# Default board (can be overridden: make BOARD=user_board)
+BOARD ?= hpm5301evklite_board
 
-# Auto-derive BOARD name and CMake search parent from BOARD_SEARCH_PATH
-_BOARD_ABS := $(abspath $(BOARD_SEARCH_PATH))
-BOARD := $(notdir $(_BOARD_ABS))
-_CMAKE_BOARD_SEARCH_PATH := $(patsubst %/,%,$(dir $(_BOARD_ABS)))
+# Derive board path
+BOARD_DIR := $(BOARDS_DIR)/$(BOARD)
+BOARD_SEARCH_PATH := $(BOARDS_DIR)
+
+# ============================================================================
+# Toolchain & Build Options
+# ============================================================================
 RV_ARCH ?= rv32imafdc
 RV_ABI ?= ilp32d
 CMAKE_BUILD_TYPE ?= Debug
 HPM_BUILD_TYPE ?= flash_xip
 GENERATOR ?= Ninja
 LAST_BUILD_LOG := $(BUILD_DIR)/last_build.log
-BUILD_UI_SCRIPT := /workspace/tools/scripts/build_ui.sh
-FLASH_SCRIPT := /workspace/tools/scripts/flash_target.sh
 
-# Flash options (can be overridden: make FLASH_TOOL=jlink flash)
+# ============================================================================
+# Flash Configuration
+# ============================================================================
 FLASH_TOOL ?= openocd
 OPENOCD_BIN ?= $(if $(HPM_OPENOCD_PREFIX),$(HPM_OPENOCD_PREFIX)/bin/openocd,openocd)
-OCD_SCRIPTS ?= $(if $(HPM_OCD_SCRIPTS),$(HPM_OCD_SCRIPTS),/workspace/hpm_sdk/boards/openocd)
+OCD_SCRIPTS ?= $(if $(HPM_OCD_SCRIPTS),$(HPM_OCD_SCRIPTS),$(ROOT_DIR)/../hpm_sdk/boards/openocd)
 PROBE_CFG ?= probes/cmsis_dap.cfg
 SOC_CFG ?= soc/hpm5300.cfg
 BOARD_CFG ?= boards/hpm5301evklite.cfg
@@ -38,23 +45,40 @@ JLINK_DEVICE ?= HPM5301xEGx
 JLINK_IF ?= JTAG
 JLINK_SPEED ?= 1000
 
+# ============================================================================
+# Scripts (relative paths)
+# ============================================================================
+BUILD_UI_SCRIPT := $(ROOT_DIR)/../tools/scripts/build_ui.sh
+FLASH_SCRIPT := $(ROOT_DIR)/../tools/scripts/flash_target.sh
+
+# ============================================================================
+# CMake Arguments
+# ============================================================================
 CMAKE_ARGS := \
 	-G$(GENERATOR) \
 	-DBOARD=$(BOARD) \
-	-DBOARD_SEARCH_PATH=$(_CMAKE_BOARD_SEARCH_PATH) \
+	-DBOARD_SEARCH_PATH=$(BOARD_SEARCH_PATH) \
 	-DRV_ARCH=$(RV_ARCH) \
 	-DRV_ABI=$(RV_ABI) \
 	-DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
 	-DHPM_BUILD_TYPE=$(HPM_BUILD_TYPE)
 
-.PHONY: all configure build build-core artifacts artifacts-core flash flash-openocd flash-jlink clean distclean rebuild help banner
+# ============================================================================
+# Phony Targets
+# ============================================================================
+.PHONY: all configure build build-core artifacts artifacts-core flash flash-openocd flash-jlink clean distclean rebuild help list-boards banner
 
 all: artifacts
 
+# ============================================================================
+# Build Targets
+# ============================================================================
 configure:
-	@if [ ! -d "$(_BOARD_ABS)" ]; then \
-		echo "Error: board directory not found: $(_BOARD_ABS)"; \
-		echo "Use: make BOARD_SEARCH_PATH=<board_dir>"; \
+	@if [ ! -d "$(BOARD_DIR)" ]; then \
+		echo "Error: board directory not found: $(BOARD_DIR)"; \
+		echo "Available boards:"; \
+		@ls $(BOARDS_DIR) 2>/dev/null || echo "  (none)"; \
+		echo "Use: make BOARD=<board_name>"; \
 		exit 1; \
 	fi
 	cmake -S $(APP_DIR) -B $(BUILD_DIR) $(CMAKE_ARGS)
@@ -78,14 +102,16 @@ build:
 artifacts-core: build-core
 	@echo ""
 	@echo "============================================================"
-	@echo "[ARTIFACTS] Export compiled files"
-	@echo "  OUTPUT_DIR: $(OUTPUT_DIR)"
+	@echo "[ARTIFACTS] Copying to output/"
 	@echo "============================================================"
-	mkdir -p $(OUTPUT_DIR)
-	cp -f $(BUILD_DIR)/output/demo.elf $(OUTPUT_DIR)/$(PROJECT_NAME).elf
-	cp -f $(BUILD_DIR)/output/demo.bin $(OUTPUT_DIR)/$(PROJECT_NAME).bin
-	cp -f $(BUILD_DIR)/output/demo.map $(OUTPUT_DIR)/$(PROJECT_NAME).map
-	cp -f $(BUILD_DIR)/output/demo.asm $(OUTPUT_DIR)/$(PROJECT_NAME).asm
+	@mkdir -p $(OUTPUT_DIR)
+	@for f in $(BUILD_DIR)/output/demo.*; do \
+		if [ -f "$$f" ]; then \
+			ext=$${f##*.}; \
+			cp "$$f" "$(OUTPUT_DIR)/$(PROJECT_NAME).$$ext"; \
+			echo "  -> $(OUTPUT_DIR)/$(PROJECT_NAME).$$ext"; \
+		fi; \
+	done
 
 artifacts:
 	@mkdir -p $(BUILD_DIR); \
@@ -96,93 +122,115 @@ artifacts:
 	$(MAKE) --no-print-directory banner BUILD_STATUS=$$status BUILD_ACTION=artifacts BUILD_LOG="$(LAST_BUILD_LOG)"; \
 	exit $$status
 
-banner:
-	@$(BUILD_UI_SCRIPT) \
-		--project "$(PROJECT_NAME)" \
-		--action "$${BUILD_ACTION:-manual}" \
-		--status "$${BUILD_STATUS:-0}" \
-		--output-dir "$(OUTPUT_DIR)" \
-		--log-file "$${BUILD_LOG:-}" \
-		--app-dir "$(APP_DIR)" \
-		--build-dir "$(BUILD_DIR)" \
-		--board "$(BOARD)" \
-		--board-search-path "$(_CMAKE_BOARD_SEARCH_PATH)" \
-		--rv-arch "$(RV_ARCH)" \
-		--rv-abi "$(RV_ABI)" \
-		--cmake-build-type "$(CMAKE_BUILD_TYPE)" \
-		--hpm-build-type "$(HPM_BUILD_TYPE)"
+# ============================================================================
+# Flash Targets
+# ============================================================================
+flash: flash-$(FLASH_TOOL)
 
-flash: build
-	@echo ""
-	@echo "============================================================"
-	@echo "[FLASH] Programming target (tool=$(FLASH_TOOL))"
-	@echo "============================================================"
-ifeq ($(FLASH_TOOL),jlink)
-	$(FLASH_SCRIPT) --tool jlink \
-		--device $(JLINK_DEVICE) \
-		--if $(JLINK_IF) \
-		--speed $(JLINK_SPEED) \
-		--elf $(BUILD_DIR)/output/demo.elf
-else
-	$(FLASH_SCRIPT) --tool openocd \
-		--openocd-bin $(OPENOCD_BIN) \
-		--ocd-scripts $(OCD_SCRIPTS) \
-		--probe-cfg $(PROBE_CFG) \
-		--soc-cfg $(SOC_CFG) \
-		--board-cfg $(BOARD_CFG) \
-		--elf $(BUILD_DIR)/output/demo.elf
-endif
+flash-openocd:
+	@echo "[FLASH] Using OpenOCD..."
+	$(OPENOCD_BIN) \
+		-s $(OCD_SCRIPTS) \
+		-f $(PROBE_CFG) \
+		-f $(SOC_CFG) \
+		-f $(BOARD_CFG) \
+		-c "program $(OUTPUT_DIR)/$(PROJECT_NAME).elf verify reset exit"
 
-flash-openocd: build
-	@echo ""
-	@echo "============================================================"
-	@echo "[FLASH] Programming target (OpenOCD)"
-	@echo "============================================================"
-	$(FLASH_SCRIPT) --tool openocd \
-		--openocd-bin $(OPENOCD_BIN) \
-		--ocd-scripts $(OCD_SCRIPTS) \
-		--probe-cfg $(PROBE_CFG) \
-		--soc-cfg $(SOC_CFG) \
-		--board-cfg $(BOARD_CFG) \
-		--elf $(BUILD_DIR)/output/demo.elf
+flash-jlink:
+	@echo "[FLASH] Using J-Link..."
+	@echo "device $(JLINK_DEVICE)" > /tmp/jlink_flash.jlink
+	@echo "if $(JLINK_IF)" >> /tmp/jlink_flash.jlink
+	@echo "speed $(JLINK_SPEED)" >> /tmp/jlink_flash.jlink
+	@echo "loadfile $(OUTPUT_DIR)/$(PROJECT_NAME).bin 0x8003000" >> /tmp/jlink_flash.jlink
+	@echo "r" >> /tmp/jlink_flash.jlink
+	@echo "q" >> /tmp/jlink_flash.jlink
+	JLinkExe /tmp/jlink_flash.jlink
 
-flash-jlink: build
-	@echo ""
-	@echo "============================================================"
-	@echo "[FLASH] Programming target (J-Link)"
-	@echo "============================================================"
-	$(FLASH_SCRIPT) --tool jlink \
-		--device $(JLINK_DEVICE) \
-		--if $(JLINK_IF) \
-		--speed $(JLINK_SPEED) \
-		--elf $(BUILD_DIR)/output/demo.elf
-
+# ============================================================================
+# Clean Targets
+# ============================================================================
 clean:
-	@echo "[CLEAN] Remove .cache, build, output"
-	rm -rf $(ROOT_DIR)/.cache $(BUILD_DIR) $(OUTPUT_DIR)
+	rm -rf $(BUILD_DIR) $(OUTPUT_DIR) $(ROOT_DIR)/.cache
 
-distclean:
-	@echo "[DISTCLEAN] Remove .cache, build, output"
-	rm -rf $(ROOT_DIR)/.cache $(BUILD_DIR) $(OUTPUT_DIR)
+distclean: clean
+	@echo "Deep clean complete."
 
 rebuild: clean build
 
+# ============================================================================
+# Info Targets
+# ============================================================================
+list-boards:
+	@echo "Available boards in $(BOARDS_DIR):"
+	@echo ""
+	@for d in $(BOARDS_DIR)/*/; do \
+		if [ -d "$$d" ]; then \
+			bname=$$(basename "$$d"); \
+			echo "  - $$bname"; \
+		fi; \
+	done
+	@echo ""
+	@echo "Current board: $(BOARD)"
+	@echo "Use: make BOARD=<board_name> build"
+
 help:
+	@echo "HPM User Template - Build System"
+	@echo ""
+	@echo "Usage: make [TARGET] [OPTIONS]"
+	@echo ""
 	@echo "Targets:"
-	@echo "  make configure      - configure CMake in $(BUILD_DIR)"
-	@echo "  make build          - configure + build, then print banner/result"
-	@echo "  make artifacts      - build + copy outputs, then print banner/result"
-	@echo "  make flash          - build + flash (default: openocd, set FLASH_TOOL=jlink to switch)"
-	@echo "  make flash-openocd  - build + flash via OpenOCD (DAPLink)"
-	@echo "  make flash-jlink    - build + flash via J-Link"
-	@echo "  make clean          - remove .cache/build/output"
-	@echo "  make distclean      - remove .cache/build/output"
-	@echo "  make rebuild        - clean then build"
+	@echo "  build         Configure and compile (default)"
+	@echo "  artifacts     Build and copy outputs to output/"
+	@echo "  flash         Flash firmware (default: openocd)"
+	@echo "  flash-openocd Flash using OpenOCD"
+	@echo "  flash-jlink   Flash using J-Link"
+	@echo "  clean         Remove build and output directories"
+	@echo "  distclean     Deep clean"
+	@echo "  rebuild       Clean and rebuild"
+	@echo "  list-boards   Show available boards"
+	@echo "  help          Show this help"
 	@echo ""
+	@echo "Options:"
+	@echo "  BOARD=<name>             Board name (default: hpm5301evklite_board)"
+	@echo "  CMAKE_BUILD_TYPE=<type>  Debug or Release (default: Debug)"
+	@echo "  HPM_BUILD_TYPE=<type>    flash_xip, flash_sdram_xip, etc."
+	@echo "  FLASH_TOOL=<tool>        openocd or jlink (default: openocd)"
 	@echo ""
-	@echo "Board selection:"
-	@echo "  make BOARD_SEARCH_PATH=hpm5301evklite_board"
-	@echo "  make BOARD_SEARCH_PATH=user_board"
-	@echo ""
-	@echo "Build vars:  BOARD_SEARCH_PATH RV_ARCH RV_ABI CMAKE_BUILD_TYPE HPM_BUILD_TYPE GENERATOR PROJECT_NAME"
-	@echo "Flash vars:  FLASH_TOOL OPENOCD_BIN OCD_SCRIPTS PROBE_CFG SOC_CFG BOARD_CFG JLINK_DEVICE JLINK_IF JLINK_SPEED"
+	@echo "Examples:"
+	@echo "  make build"
+	@echo "  make BOARD=user_board build"
+	@echo "  make CMAKE_BUILD_TYPE=Release artifacts"
+	@echo "  make FLASH_TOOL=jlink flash"
+
+# ============================================================================
+# Banner
+# ============================================================================
+banner:
+	@if [ -x "$(BUILD_UI_SCRIPT)" ]; then \
+		PROJECT_NAME="$(PROJECT_NAME)" \
+		BUILD_ACTION="$(BUILD_ACTION)" \
+		BUILD_STATUS="$(BUILD_STATUS)" \
+		OUTPUT_DIR="$(OUTPUT_DIR)" \
+		BUILD_LOG="$(LAST_BUILD_LOG)" \
+		APP_DIR="$(APP_DIR)" \
+		BUILD_DIR="$(BUILD_DIR)" \
+		BOARD="$(BOARD)" \
+		BOARD_SEARCH_PATH="$(BOARD_SEARCH_PATH)" \
+		RV_ARCH="$(RV_ARCH)" \
+		RV_ABI="$(RV_ABI)" \
+		CMAKE_BUILD_TYPE="$(CMAKE_BUILD_TYPE)" \
+		HPM_BUILD_TYPE="$(HPM_BUILD_TYPE)" \
+		bash $(BUILD_UI_SCRIPT) --action $(BUILD_ACTION) --status $(BUILD_STATUS); \
+	else \
+		if [ "$(BUILD_STATUS)" -eq 0 ]; then \
+			echo ""; \
+			echo "============================================================"; \
+			echo "  BUILD SUCCEEDED"; \
+			echo "============================================================"; \
+		else \
+			echo ""; \
+			echo "============================================================"; \
+			echo "  BUILD FAILED (exit code: $(BUILD_STATUS))"; \
+			echo "============================================================"; \
+		fi; \
+	fi

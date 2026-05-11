@@ -93,6 +93,33 @@ make artifacts
 
 ## 5. 基于模板创建新工程
 
+推荐优先使用脚本创建工程（会自动完成板级重命名、开发配置生成）：
+
+```bash
+cd /workspace
+bash tools/scripts/new_project <project_name>
+```
+
+示例：
+
+```bash
+bash tools/scripts/new_project motor_ctrl
+```
+
+脚本会自动执行：
+
+- 从 `user_template/` 复制工程
+- 将 `Board/user_board` 重命名为 `Board/<project_name>_board`
+- 生成项目级 `.clangd`（包含相对路径配置）
+- 生成 `<project_name>.code-workspace`，并自动加入：
+  - 当前新工程
+  - `hpm_sdk`
+  - `alliance_hpm_base_platform`
+
+> 说明：生成的 `.clangd` 与 `.code-workspace` 均使用**相对路径**，便于在不同目录层级复用。
+
+### 5.1 手动复制方式（可选）
+
 ```bash
 cd /workspace
 cp -a user_template my_project
