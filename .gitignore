@@ -11,6 +11,8 @@ output/
 /tools/jlink-V8.40
 /tools/**/.cache/
 
+/HPM5361_WirelessCharger/
+
 compile_commands.json
 
 .devcontainer/.zsh_history
